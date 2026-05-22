@@ -371,7 +371,12 @@ async function renderAdminNotes() {
 
   try {
     const res = await fetch("/api/notes");
-    const data = await res.json();
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch (e) {
+      container.innerHTML = '<div style="color:#d32f2f;text-align:center;padding:20px">JSON hatası: ' + text.substring(0,300) + '</div>';
+      return;
+    }
     let html = '<div style="margin-bottom:16px">' +
       '<button id="adminAddNoteBtn" style="padding:10px 20px;background:#2e7d32;color:white;border:none;border-radius:10px;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit">📤 Yeni Not Ekle</button>' +
       '</div>';
@@ -420,7 +425,7 @@ async function renderAdminNotes() {
       btn.addEventListener("click", function() {
         if (confirm('"' + this.dataset.title + '" adlı notu silmek istediğinize emin misiniz?')) {
           fetch("/api/notes/" + this.dataset.id, { method: "DELETE" })
-            .then(r => r.json()).then(d => { if (d.success) renderAdminNotes(); else alert(d.error); });
+            .then(r => r.text()).then(t => { try { const d=JSON.parse(t); if(d.success) renderAdminNotes(); else alert(d.error); } catch(e){ alert("JSON hatası: "+t.substring(0,200)); } });
         }
       });
     });
@@ -516,7 +521,12 @@ function showAddNoteForm() {
 
     try {
       const res = await fetch("/api/notes/upload", { method: "POST", body: formData });
-      const data = await res.json();
+      const text = await res.text();
+      let data;
+      try { data = JSON.parse(text); } catch (e) {
+        errorEl.textContent = "Sunucu yanıtı JSON değil: " + text.substring(0,200);
+        return;
+      }
       if (data.error) { errorEl.textContent = data.error; return; }
       overlay.remove();
       renderAdminNotes();
