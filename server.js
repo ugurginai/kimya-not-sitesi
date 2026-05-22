@@ -15,7 +15,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage, limits: { fileSize: 50 * 1024 * 1024 } });
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = 3000;
 
 const ADMIN_USERNAME = "Kimya_not";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "191435U.g";
