@@ -374,7 +374,7 @@ app.post("/api/notes/upload", requireAuth, requireAdmin, upload.single("file"), 
       fs.unlinkSync(req.file.path);
       return res.status(400).json({ error: "Başlık, konu türü ve konu indeksi gerekli" });
     }
-    if (!["tyt", "ayt", "deneme"].includes(topic_type)) {
+    if (!["tyt", "ayt", "deneme", "slayt", "infografik"].includes(topic_type)) {
       fs.unlinkSync(req.file.path);
       return res.status(400).json({ error: "Geçersiz konu türü (tyt/ayt)" });
     }

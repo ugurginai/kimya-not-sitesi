@@ -177,7 +177,17 @@ async function loadNotes(topicType, topicIndex) {
   let queryText = 'SELECT * FROM notes';
   const params = [];
   const conditions = [];
-  if (topicType) { conditions.push('topic_type = $' + (params.length + 1)); params.push(topicType); }
+  if (topicType) {
+    const types = topicType.split(',').map(t => t.trim()).filter(Boolean);
+    if (types.length === 1) {
+      conditions.push('topic_type = $' + (params.length + 1));
+      params.push(types[0]);
+    } else {
+      const placeholders = types.map(t => '$' + (params.length + 1)).join(',');
+      params.push(...types);
+      conditions.push('topic_type IN (' + placeholders + ')');
+    }
+  }
   if (topicIndex !== undefined && topicIndex !== null && topicIndex !== '') {
     conditions.push('topic_index = $' + (params.length + 1));
     params.push(parseInt(topicIndex));
