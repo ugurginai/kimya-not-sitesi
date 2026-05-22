@@ -1,178 +1,141 @@
-const Database = require('better-sqlite3');
-const path = require('path');
-const fs = require('fs');
+const { Pool } = require('pg');
 
-const DB_PATH = path.join(__dirname, 'data.db');
-let db;
+let pool;
 
 function init() {
-  const exists = fs.existsSync(DB_PATH);
-  db = new Database(DB_PATH);
-  db.pragma('journal_mode = WAL');
-  if (!exists) {
-    createTables();
-    migrateFromJson();
-  }
-  return db;
+  pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  });
+  createTables();
+  return pool;
 }
 
-function createTables() {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS users (
-      username TEXT PRIMARY KEY,
-      password TEXT NOT NULL,
-      name TEXT DEFAULT '',
-      surname TEXT DEFAULT '',
-      role TEXT DEFAULT 'user'
-    );
-    CREATE TABLE IF NOT EXISTS stars (
-      username TEXT PRIMARY KEY,
-      stars INTEGER DEFAULT 0,
-      online INTEGER DEFAULT 0,
-      lastActive INTEGER DEFAULT 0,
-      todayActive INTEGER DEFAULT 0
-    );
-    CREATE TABLE IF NOT EXISTS progress (
-      username TEXT NOT NULL,
-      type TEXT NOT NULL,
-      topic_index INTEGER NOT NULL,
-      PRIMARY KEY (username, type, topic_index)
-    );
-    CREATE TABLE IF NOT EXISTS calendar (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      username TEXT NOT NULL,
-      date TEXT NOT NULL,
-      active INTEGER DEFAULT 0,
-      topics TEXT DEFAULT '[]',
-      plan TEXT DEFAULT '[]',
-      UNIQUE(username, date)
-    );
-  `);
-}
-
-function migrateFromJson() {
-  const usersFile = path.join(__dirname, 'users.json');
-  const starsFile = path.join(__dirname, 'stars.json');
-  const progressFile = path.join(__dirname, 'progress.json');
-  const calendarFile = path.join(__dirname, 'calendar.json');
-
+async function createTables() {
+  const client = await pool.connect();
   try {
-    if (fs.existsSync(usersFile)) {
-      const users = JSON.parse(fs.readFileSync(usersFile, 'utf-8'));
-      const insert = db.prepare('INSERT OR IGNORE INTO users (username, password, name, surname, role) VALUES (?, ?, ?, ?, ?)');
-      for (const [username, data] of Object.entries(users)) {
-        insert.run(username, data.password || '', data.name || '', data.surname || '', data.role || 'user');
-      }
-    }
-    if (fs.existsSync(starsFile)) {
-      const stars = JSON.parse(fs.readFileSync(starsFile, 'utf-8'));
-      const insert = db.prepare('INSERT OR IGNORE INTO stars (username, stars, online, lastActive, todayActive) VALUES (?, ?, ?, ?, ?)');
-      for (const [username, data] of Object.entries(stars)) {
-        insert.run(username, data.stars || 0, data.online ? 1 : 0, data.lastActive || 0, data.todayActive || 0);
-      }
-    }
-    if (fs.existsSync(progressFile)) {
-      const progress = JSON.parse(fs.readFileSync(progressFile, 'utf-8'));
-      const insert = db.prepare('INSERT OR IGNORE INTO progress (username, type, topic_index) VALUES (?, ?, ?)');
-      for (const [username, data] of Object.entries(progress)) {
-        if (data.tyt) data.tyt.forEach(i => insert.run(username, 'tyt', i));
-        if (data.ayt) data.ayt.forEach(i => insert.run(username, 'ayt', i));
-      }
-    }
-    if (fs.existsSync(calendarFile)) {
-      const calendar = JSON.parse(fs.readFileSync(calendarFile, 'utf-8'));
-      const insert = db.prepare('INSERT OR IGNORE INTO calendar (username, date, active, topics, plan) VALUES (?, ?, ?, ?, ?)');
-      for (const [username, dates] of Object.entries(calendar)) {
-        for (const [date, data] of Object.entries(dates)) {
-          insert.run(username, date, data.active || 0, JSON.stringify(data.topics || []), JSON.stringify(data.plan || []));
-        }
-      }
-    }
-    console.log('JSON verileri SQLite\'a aktarıldı.');
-  } catch (e) {
-    console.error('Migrasyon hatası:', e.message);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        username TEXT PRIMARY KEY,
+        password TEXT NOT NULL,
+        name TEXT DEFAULT '',
+        surname TEXT DEFAULT '',
+        role TEXT DEFAULT 'user'
+      );
+      CREATE TABLE IF NOT EXISTS stars (
+        username TEXT PRIMARY KEY,
+        stars INTEGER DEFAULT 0,
+        online INTEGER DEFAULT 0,
+        lastActive BIGINT DEFAULT 0,
+        todayActive INTEGER DEFAULT 0
+      );
+      CREATE TABLE IF NOT EXISTS progress (
+        username TEXT NOT NULL,
+        type TEXT NOT NULL,
+        topic_index INTEGER NOT NULL,
+        PRIMARY KEY (username, type, topic_index)
+      );
+      CREATE TABLE IF NOT EXISTS calendar (
+        id SERIAL PRIMARY KEY,
+        username TEXT NOT NULL,
+        date TEXT NOT NULL,
+        active INTEGER DEFAULT 0,
+        topics TEXT DEFAULT '[]',
+        plan TEXT DEFAULT '[]',
+        UNIQUE(username, date)
+      );
+    `);
+    console.log('PostgreSQL tablolari olusturuldu.');
+  } finally {
+    client.release();
   }
 }
 
-// --- Users ---
-function loadUsers() {
-  const rows = db.prepare('SELECT * FROM users').all();
+async function query(text, params) {
+  const client = await pool.connect();
+  try {
+    return await client.query(text, params);
+  } finally {
+    client.release();
+  }
+}
+
+async function loadUsers() {
+  const result = await query('SELECT * FROM users');
   const users = {};
-  for (const row of rows) {
+  for (const row of result.rows) {
     users[row.username] = { password: row.password, name: row.name || '', surname: row.surname || '', role: row.role || 'user' };
   }
   return users;
 }
 
-function saveUsers(users) {
-  const upsert = db.prepare('INSERT OR REPLACE INTO users (username, password, name, surname, role) VALUES (?, ?, ?, ?, ?)');
-  const del = db.prepare('DELETE FROM users WHERE username = ?');
-  const txn = db.transaction(() => {
-    const existing = new Set(db.prepare('SELECT username FROM users').all().map(r => r.username));
-    for (const username of existing) {
-      if (!users[username]) del.run(username);
-    }
-    for (const [username, data] of Object.entries(users)) {
-      upsert.run(username, data.password || '', data.name || '', data.surname || '', data.role || 'user');
-    }
-  });
-  txn();
+async function saveUsers(users) {
+  const existing = await query('SELECT username FROM users');
+  const existingSet = new Set(existing.rows.map(r => r.username));
+  for (const username of existingSet) {
+    if (!users[username]) await query('DELETE FROM users WHERE username = $1', [username]);
+  }
+  for (const [username, data] of Object.entries(users)) {
+    await query(
+      'INSERT INTO users (username, password, name, surname, role) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (username) DO UPDATE SET password = $2, name = $3, surname = $4, role = $5',
+      [username, data.password || '', data.name || '', data.surname || '', data.role || 'user']
+    );
+  }
 }
 
-// --- Stars ---
-function loadStars() {
-  const rows = db.prepare('SELECT * FROM stars').all();
+async function loadStars() {
+  const result = await query('SELECT * FROM stars');
   const stars = {};
-  for (const row of rows) {
+  for (const row of result.rows) {
     stars[row.username] = {
       stars: row.stars || 0,
       online: !!row.online,
-      lastActive: row.lastActive || 0,
-      todayActive: row.todayActive || 0,
+      lastActive: row.lastactive || 0,
+      todayActive: row.todayactive || 0,
     };
   }
   return stars;
 }
 
-function saveStars(data) {
-  const upsert = db.prepare('INSERT OR REPLACE INTO stars (username, stars, online, lastActive, todayActive) VALUES (?, ?, ?, ?, ?)');
-  const txn = db.transaction(() => {
-    for (const [username, d] of Object.entries(data)) {
-      upsert.run(username, d.stars || 0, d.online ? 1 : 0, d.lastActive || 0, d.todayActive || 0);
-    }
-  });
-  txn();
+async function saveStars(data) {
+  for (const [username, d] of Object.entries(data)) {
+    await query(
+      'INSERT INTO stars (username, stars, online, lastActive, todayActive) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (username) DO UPDATE SET stars = $2, online = $3, lastActive = $4, todayActive = $5',
+      [username, d.stars || 0, d.online ? 1 : 0, d.lastActive || 0, d.todayActive || 0]
+    );
+  }
 }
 
-// --- Progress ---
-function loadProgress() {
-  const rows = db.prepare('SELECT * FROM progress ORDER BY type, topic_index').all();
+async function loadProgress() {
+  const result = await query('SELECT * FROM progress ORDER BY type, topic_index');
   const progress = {};
-  for (const row of rows) {
+  for (const row of result.rows) {
     if (!progress[row.username]) progress[row.username] = { tyt: [], ayt: [] };
     progress[row.username][row.type].push(row.topic_index);
   }
   return progress;
 }
 
-function saveProgress(data) {
-  const del = db.prepare('DELETE FROM progress WHERE username = ?');
-  const insert = db.prepare('INSERT OR IGNORE INTO progress (username, type, topic_index) VALUES (?, ?, ?)');
-  const txn = db.transaction(() => {
-    for (const [username, d] of Object.entries(data)) {
-      del.run(username);
-      if (d.tyt) d.tyt.forEach(i => insert.run(username, 'tyt', i));
-      if (d.ayt) d.ayt.forEach(i => insert.run(username, 'ayt', i));
+async function saveProgress(data) {
+  for (const [username, d] of Object.entries(data)) {
+    await query('DELETE FROM progress WHERE username = $1', [username]);
+    if (d.tyt) {
+      for (const i of d.tyt) {
+        await query('INSERT INTO progress (username, type, topic_index) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING', [username, 'tyt', i]);
+      }
     }
-  });
-  txn();
+    if (d.ayt) {
+      for (const i of d.ayt) {
+        await query('INSERT INTO progress (username, type, topic_index) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING', [username, 'ayt', i]);
+      }
+    }
+  }
 }
 
-// --- Calendar ---
-function loadCalendar() {
-  const rows = db.prepare('SELECT * FROM calendar').all();
+async function loadCalendar() {
+  const result = await query('SELECT * FROM calendar');
   const calendar = {};
-  for (const row of rows) {
+  for (const row of result.rows) {
     if (!calendar[row.username]) calendar[row.username] = {};
     calendar[row.username][row.date] = {
       active: row.active || 0,
@@ -183,17 +146,15 @@ function loadCalendar() {
   return calendar;
 }
 
-function saveCalendar(data) {
-  const del = db.prepare('DELETE FROM calendar WHERE username = ? AND date = ?');
-  const insert = db.prepare('INSERT OR REPLACE INTO calendar (username, date, active, topics, plan) VALUES (?, ?, ?, ?, ?)');
-  const txn = db.transaction(() => {
-    for (const [username, dates] of Object.entries(data)) {
-      for (const [date, d] of Object.entries(dates)) {
-        insert.run(username, date, d.active || 0, JSON.stringify(d.topics || []), JSON.stringify(d.plan || []));
-      }
+async function saveCalendar(data) {
+  for (const [username, dates] of Object.entries(data)) {
+    for (const [date, d] of Object.entries(dates)) {
+      await query(
+        'INSERT INTO calendar (username, date, active, topics, plan) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (username, date) DO UPDATE SET active = $3, topics = $4, plan = $5',
+        [username, date, d.active || 0, JSON.stringify(d.topics || []), JSON.stringify(d.plan || [])]
+      );
     }
-  });
-  txn();
+  }
 }
 
 function safeParse(str, def) {
