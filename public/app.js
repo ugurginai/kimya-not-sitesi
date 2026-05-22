@@ -3,8 +3,6 @@ const AYT_TOPICS = ["Modern Atom Teorisi","Gazlar","Sıvı Çözeltiler","Kimyas
 
 let currentPath = "";
 const fileList = document.getElementById("fileList");
-const NOTE_LABEL = { not: "Not", slayt: "Slayt", infografik: "İnfografik", deneme: "Deneme" };
-const NOTE_ICON = { not: "📄", slayt: "🖥️", infografik: "📊", deneme: "📋" };
 const breadcrumb = document.getElementById("breadcrumb");
 const userDisplay = document.getElementById("userDisplay");
 const logoutBtn = document.getElementById("logoutBtn");
@@ -371,12 +369,7 @@ async function renderAdminNotes() {
 
   try {
     const res = await fetch("/api/notes");
-    const text = await res.text();
-    let data;
-    try { data = JSON.parse(text); } catch (e) {
-      container.innerHTML = '<div style="color:#d32f2f;text-align:center;padding:20px">JSON hatası: ' + text.substring(0,300) + '</div>';
-      return;
-    }
+    const data = await res.json();
     let html = '<div style="margin-bottom:16px">' +
       '<button id="adminAddNoteBtn" style="padding:10px 20px;background:#2e7d32;color:white;border:none;border-radius:10px;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit">📤 Yeni Not Ekle</button>' +
       '</div>';
@@ -391,27 +384,22 @@ async function renderAdminNotes() {
       html += '<th style="padding:10px 12px;text-align:center;color:#555;font-weight:500">Dosya</th>';
       html += '<th style="padding:10px 12px;text-align:right;color:#555;font-weight:500">İşlem</th>';
       html += '</tr></thead><tbody>';
-      const TYPE_ICONS = { tyt: "🧪", ayt: "⚗️", slayt: "🖥️", infografik: "📊", deneme: "📋" };
-      const TYPE_LABELS = { tyt: "TYT", ayt: "AYT", slayt: "Slayt", infografik: "İnfografik", deneme: "Deneme" };
-      const NOTE_STYLE = { not: { icon: "📄", label: "Not" }, slayt: { icon: "🖥️", label: "Slayt" }, infografik: { icon: "📊", label: "İnfografik" } };
-      const TYPE_ICON = { tyt: "🧪", ayt: "⚗️", deneme: "📋" };
       data.notes.forEach(n => {
-        let topicName;
-        const ns = NOTE_STYLE[n.note_type || "not"] || NOTE_STYLE.not;
-        const typeIcon = TYPE_ICON[n.topic_type] || "📄";
+        let topicName, typeIcon;
         if (n.topic_type === "deneme") {
+          typeIcon = "📋";
           topicName = n.topic_index == 0 ? "TYT Deneme" : "AYT Deneme";
-        } else if (TYT_TOPICS[n.topic_index] !== undefined) {
-          topicName = TYT_TOPICS[n.topic_index];
-        } else if (AYT_TOPICS[n.topic_index] !== undefined) {
-          topicName = AYT_TOPICS[n.topic_index];
+        } else if (n.topic_type === "tyt") {
+          typeIcon = "🧪";
+          topicName = TYT_TOPICS[n.topic_index] || "Bilinmeyen";
         } else {
-          topicName = "Bilinmeyen";
+          typeIcon = "⚗️";
+          topicName = AYT_TOPICS[n.topic_index] || "Bilinmeyen";
         }
         const fileUrl = "/uploads/notes/" + encodeURIComponent(n.filename);
         html += '<tr>' +
           '<td style="padding:10px 12px;font-weight:500">' + esc(n.title) + (n.description ? '<br><span style="font-size:0.72rem;color:#8e8e93">' + esc(n.description) + '</span>' : '') + '</td>' +
-          '<td style="padding:10px 12px">' + typeIcon + ' ' + esc(topicName || "Bilinmeyen") + '<br><span style="font-size:0.7rem;color:#8e8e93">' + ns.icon + ' ' + ns.label + '</span></td>' +
+          '<td style="padding:10px 12px">' + typeIcon + ' ' + esc(topicName || "Bilinmeyen") + '</td>' +
           '<td style="padding:10px 12px;text-align:center"><a href="' + fileUrl + '" target="_blank" style="color:#0056cc;text-decoration:none">📄 ' + esc(n.original_name) + '</a></td>' +
           '<td style="padding:10px 12px;text-align:right"><button class="admin-note-delete" data-id="' + n.id + '" data-title="' + esc(n.title) + '" style="padding:4px 10px;background:#fff0f0;color:#d32f2f;border:1px solid #ffd0d0;border-radius:6px;font-size:0.72rem;cursor:pointer;font-family:inherit">Sil</button></td>' +
           '</tr>';
@@ -425,7 +413,7 @@ async function renderAdminNotes() {
       btn.addEventListener("click", function() {
         if (confirm('"' + this.dataset.title + '" adlı notu silmek istediğinize emin misiniz?')) {
           fetch("/api/notes/" + this.dataset.id, { method: "DELETE" })
-            .then(r => r.text()).then(t => { try { const d=JSON.parse(t); if(d.success) renderAdminNotes(); else alert(d.error); } catch(e){ alert("JSON hatası: "+t.substring(0,200)); } });
+            .then(r => r.json()).then(d => { if (d.success) renderAdminNotes(); else alert(d.error); });
         }
       });
     });
@@ -448,11 +436,6 @@ function showAddNoteForm() {
             <option value="ayt">⚗️ AYT</option>
             <option value="deneme">📋 Deneme</option>
           </select>
-          <select id="nf_subtype" style="padding:10px 12px;border:1px solid #e0e0e5;border-radius:10px;font-size:0.85rem;font-family:inherit;background:white">
-            <option value="not">📄 Not</option>
-            <option value="slayt">🖥️ Slayt</option>
-            <option value="infografik">📊 İnfografik</option>
-          </select>
           <select id="nf_topic" style="flex:2;padding:10px 12px;border:1px solid #e0e0e5;border-radius:10px;font-size:0.85rem;font-family:inherit;background:white"></select>
         </div>
         <div style="border:2px dashed #d0d0d5;border-radius:12px;padding:20px;text-align:center;cursor:pointer;color:#8e8e93;font-size:0.82rem;background:#fafbfc" id="nf_dropzone">
@@ -471,13 +454,10 @@ function showAddNoteForm() {
   document.body.appendChild(overlay);
 
   const typeSel = overlay.querySelector("#nf_type");
-  const subtypeSel = overlay.querySelector("#nf_subtype");
   const topicSel = overlay.querySelector("#nf_topic");
-  function updateUi() {
+  function updateTopics() {
     const val = typeSel.value;
-    const isDeneme = val === "deneme";
-    subtypeSel.style.display = isDeneme ? "none" : "";
-    if (isDeneme) {
+    if (val === "deneme") {
       topicSel.innerHTML = '<option value="0">🧪 TYT Deneme</option><option value="1">⚗️ AYT Deneme</option>';
     } else if (val === "ayt") {
       topicSel.innerHTML = AYT_TOPICS.map((t, i) => '<option value="' + i + '">' + t + '</option>').join("");
@@ -485,8 +465,8 @@ function showAddNoteForm() {
       topicSel.innerHTML = TYT_TOPICS.map((t, i) => '<option value="' + i + '">' + t + '</option>').join("");
     }
   }
-  typeSel.addEventListener("change", updateUi);
-  updateUi();
+  typeSel.addEventListener("change", updateTopics);
+  updateTopics();
 
   const dropzone = overlay.querySelector("#nf_dropzone");
   const fileInput = overlay.querySelector("#nf_file");
@@ -503,7 +483,6 @@ function showAddNoteForm() {
     const title = overlay.querySelector("#nf_title").value.trim();
     const desc = overlay.querySelector("#nf_desc").value.trim();
     const type = overlay.querySelector("#nf_type").value;
-    const subtype = overlay.querySelector("#nf_subtype").value;
     const topic = overlay.querySelector("#nf_topic").value;
     const file = fileInput.files[0];
     const errorEl = overlay.querySelector("#nf_error");
@@ -516,17 +495,11 @@ function showAddNoteForm() {
     formData.append("description", desc);
     formData.append("topic_type", type);
     formData.append("topic_index", topic);
-    formData.append("note_type", type === "deneme" ? "not" : subtype);
     formData.append("file", file);
 
     try {
       const res = await fetch("/api/notes/upload", { method: "POST", body: formData });
-      const text = await res.text();
-      let data;
-      try { data = JSON.parse(text); } catch (e) {
-        errorEl.textContent = "Sunucu yanıtı JSON değil: " + text.substring(0,200);
-        return;
-      }
+      const data = await res.json();
       if (data.error) { errorEl.textContent = data.error; return; }
       overlay.remove();
       renderAdminNotes();
@@ -701,12 +674,9 @@ async function loadDenemeNotes() {
 
 function noteLinkHtml(n) {
   const fileUrl = "/uploads/notes/" + encodeURIComponent(n.filename);
-  const nt = n.note_type || "not";
-  const icon = NOTE_ICON[nt] || "📄";
-  const label = NOTE_LABEL[nt] || "";
   return '<a href="' + fileUrl + '" target="_blank" style="display:flex;align-items:center;gap:6px;padding:6px 8px;background:#f5f8ff;border-radius:8px;margin-bottom:4px;text-decoration:none;color:#1d1d1f;font-size:0.78rem">' +
-    '<span>' + icon + '</span>' +
-    '<span style="flex:1">' + esc(n.title) + ' <span style="font-size:0.65rem;color:#8e8e93">(' + label + ')</span></span>' +
+    '<span>📄</span>' +
+    '<span style="flex:1">' + esc(n.title) + '</span>' +
     (n.description ? '<span style="font-size:0.7rem;color:#8e8e93">' + esc(n.description) + '</span>' : '') +
     '</a>';
 }
@@ -729,15 +699,12 @@ async function loadNotesForTopic(type, topicIdx) {
       el.innerHTML = "";
       return;
     }
-    el.innerHTML = '<div style="font-size:0.75rem;font-weight:600;color:#0056cc;margin-bottom:6px;border-top:1px solid #e8e8ed;padding-top:8px;margin-top:4px">📦 Bu Konuya Ait Materyaller</div>' +
+    el.innerHTML = '<div style="font-size:0.75rem;font-weight:600;color:#0056cc;margin-bottom:6px;border-top:1px solid #e8e8ed;padding-top:8px;margin-top:4px">📄 Bu Konuya Ait Notlar</div>' +
       data.notes.map(n => {
         const fileUrl = "/uploads/notes/" + encodeURIComponent(n.filename);
-        const nt = n.note_type || "not";
-        const icon = NOTE_ICON[nt] || "📄";
-        const label = NOTE_LABEL[nt] || "";
         return '<a href="' + fileUrl + '" target="_blank" style="display:flex;align-items:center;gap:6px;padding:6px 8px;background:#f5f8ff;border-radius:8px;margin-bottom:4px;text-decoration:none;color:#1d1d1f;font-size:0.78rem">' +
-          '<span>' + icon + '</span>' +
-          '<span style="flex:1">' + esc(n.title) + ' <span style="font-size:0.65rem;color:#8e8e93">(' + label + ')</span></span>' +
+          '<span>📄</span>' +
+          '<span style="flex:1">' + esc(n.title) + '</span>' +
           (n.description ? '<span style="font-size:0.7rem;color:#8e8e93">' + esc(n.description) + '</span>' : '') +
           '</a>';
       }).join("");

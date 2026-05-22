@@ -369,25 +369,20 @@ app.get("/api/notes", async (req, res) => {
 app.post("/api/notes/upload", requireAuth, requireAdmin, upload.single("file"), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: "Dosya gerekli" });
-    const { title, description, topic_type, topic_index, note_type } = req.body;
+    const { title, description, topic_type, topic_index } = req.body;
     if (!title || !topic_type || topic_index === undefined || topic_index === null) {
       fs.unlinkSync(req.file.path);
       return res.status(400).json({ error: "Başlık, konu türü ve konu indeksi gerekli" });
     }
     if (!["tyt", "ayt", "deneme"].includes(topic_type)) {
       fs.unlinkSync(req.file.path);
-      return res.status(400).json({ error: "Geçersiz konu türü (tyt/ayt/deneme)" });
-    }
-    if (topic_type !== "deneme" && note_type && !["not", "slayt", "infografik"].includes(note_type)) {
-      fs.unlinkSync(req.file.path);
-      return res.status(400).json({ error: "Geçersiz not türü (not/slayt/infografik)" });
+      return res.status(400).json({ error: "Geçersiz konu türü" });
     }
     const note = await db.createNote({
       title,
       description: description || "",
       topic_type,
       topic_index: parseInt(topic_index),
-      note_type: topic_type !== "deneme" ? (note_type || "not") : "not",
       filename: req.file.filename,
       original_name: req.file.originalname,
       file_size: req.file.size,

@@ -50,14 +50,12 @@ async function createTables() {
         description TEXT DEFAULT '',
         topic_type TEXT NOT NULL,
         topic_index INTEGER NOT NULL,
-        note_type TEXT DEFAULT 'not',
         filename TEXT NOT NULL,
         original_name TEXT NOT NULL,
         file_size INTEGER DEFAULT 0,
         created_by TEXT NOT NULL,
         created_at TIMESTAMP DEFAULT NOW()
       );
-      ALTER TABLE notes ADD COLUMN IF NOT EXISTS note_type TEXT DEFAULT 'not';
     `);
     console.log('PostgreSQL tablolari olusturuldu.');
   } finally {
@@ -202,8 +200,8 @@ async function loadNotes(topicType, topicIndex) {
 
 async function createNote(data) {
   const result = await query(
-    'INSERT INTO notes (title, description, topic_type, topic_index, note_type, filename, original_name, file_size, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *',
-    [data.title, data.description || '', data.topic_type, data.topic_index, data.note_type || 'not', data.filename, data.original_name, data.file_size || 0, data.created_by]
+    'INSERT INTO notes (title, description, topic_type, topic_index, filename, original_name, file_size, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+    [data.title, data.description || '', data.topic_type, data.topic_index, data.filename, data.original_name, data.file_size || 0, data.created_by]
   );
   return result.rows[0];
 }
