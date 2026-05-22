@@ -419,6 +419,17 @@ app.get("/", (req, res) => {
   res.redirect("/login.html");
 });
 
+app.use((err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    return res.status(400).json({ error: "Dosya yükleme hatası: " + err.message });
+  }
+  if (err) {
+    console.error("Express error:", err);
+    return res.status(500).json({ error: "Sunucu hatası" });
+  }
+  next();
+});
+
 async function start() {
   await db.init();
   const users = await db.loadUsers();
