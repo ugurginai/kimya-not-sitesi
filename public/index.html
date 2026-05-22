@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kimya_not</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="container">
+  <div class="header-top">
+    <span class="user-badge" id="userDisplay"></span>
+    <button class="btn-header btn-admin" id="adminBtn" style="display:none">Admin</button>
+    <button class="btn-header" id="logoutBtn">Çıkış Yap</button>
+  </div>
+
+  <header>
+    <div class="header-inner">
+      <img src="/logo.png" alt="Logo" onclick="navigate('')" style="cursor:pointer">
+      <div>
+        <h1>Kimya_not</h1>
+        <p class="subtitle">Başarıya Doğru çözüm ve kaliteli notlarla gidilir</p>
+      </div>
+    </div>
+  </header>
+
+  <div class="search-bar">
+    <span class="search-icon">🔍</span>
+    <input type="text" id="searchInput" placeholder="Konu, not veya deneme ara..." autocomplete="off">
+    <div class="search-results" id="searchResults"></div>
+  </div>
+
+  <div class="breadcrumb" id="breadcrumb"></div>
+  <div class="file-list" id="fileList"><div class="loading">Yükleniyor...</div></div>
+
+  <div class="home-section" id="countdownSection">
+    <div class="countdown-card">
+      <div class="countdown-title">🎯 YKS 2026'ya Kalan Süre</div>
+      <div class="countdown-grid">
+        <div class="cd-item"><div class="cd-num" id="cdDays">00</div><div class="cd-label">Gün</div></div>
+        <div class="cd-sep">:</div>
+        <div class="cd-item"><div class="cd-num" id="cdHours">00</div><div class="cd-label">Saat</div></div>
+        <div class="cd-sep">:</div>
+        <div class="cd-item"><div class="cd-num" id="cdMins">00</div><div class="cd-label">Dakika</div></div>
+        <div class="cd-sep">:</div>
+        <div class="cd-item"><div class="cd-num" id="cdSecs">00</div><div class="cd-label">Saniye</div></div>
+      </div>
+      <div class="cd-motivation">Rakiplerin çalışırken geri kalma.</div>
+    </div>
+  </div>
+
+  <div class="home-section" id="recentSection">
+    <div class="recent-card" id="recentCard">
+      <div class="recent-title">📥 Son Eklenen Notlar</div>
+      <div id="recentList"><div class="loading" style="padding:10px;font-size:0.82rem">Yükleniyor...</div></div>
+    </div>
+  </div>
+
+  <div class="home-section" id="calendarSection">
+    <div class="weekly-card">
+      <div class="cal-weekly" id="calWeekly"></div>
+    </div>
+    <div class="cal-card">
+      <div class="cal-header">
+        <div class="cal-title">📅 Çalışma Takvimi</div>
+        <div class="cal-stats" id="calStats"></div>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+      <div class="cal-legend">
+        <span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#2e7d32;margin-right:4px"></span> Yoğun</span>
+        <span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#0056cc;margin-right:4px"></span> Normal</span>
+        <span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#e8e8ed;margin-right:4px"></span> Boş</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="home-section" id="topicSection">
+    <div class="topic-card">
+      <div class="topic-header">
+        <div class="topic-title">📚 Konu Takip</div>
+        <div class="topic-progress-summary">
+          <div class="tp-item"><span class="tp-label">TYT</span><span class="tp-pct" id="tytPct">%0</span><span class="tp-count" id="tytCount">(0/10)</span></div>
+          <div class="tp-item"><span class="tp-label">AYT</span><span class="tp-pct" id="aytPct">%0</span><span class="tp-count" id="aytCount">(0/11)</span></div>
+        </div>
+      </div>
+
+      <div class="topic-accordion">
+        <div class="ta-section">
+          <button class="ta-trigger" onclick="toggleAccordion(this)">
+            <span>🧪 TYT Kimya</span>
+            <div class="ta-bar-wrap"><div class="ta-bar" id="tytBar" style="width:0%"></div></div>
+            <span class="ta-arrow">▾</span>
+          </button>
+          <div class="ta-body" id="tytTopics"></div>
+        </div>
+        <div class="ta-section">
+          <button class="ta-trigger" onclick="toggleAccordion(this)">
+            <span>⚗️ AYT Kimya</span>
+            <div class="ta-bar-wrap"><div class="ta-bar" id="aytBar" style="width:0%"></div></div>
+            <span class="ta-arrow">▾</span>
+          </button>
+          <div class="ta-body" id="aytTopics"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="home-section" id="progressLBSection">
+    <div class="progress-lb" id="progressLB"></div>
+  </div>
+
+  <div class="leaderboard" id="leaderboard">
+    <div id="onlineSection" style="margin-bottom:16px"></div>
+    <div class="lb-title"><span>🏆</span> Kimya Liderlik Tablosu</div>
+    <div id="lbContent"><div class="loading" style="padding:20px">Yükleniyor...</div></div>
+  </div>
+</div>
+
+<footer><p>Kimya_not &mdash; Premium Eğitim Platformu</p></footer>
+
+<div class="star-toast" id="starToast"></div>
+
+<div id="adminModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.3);backdrop-filter:blur(4px);z-index:1000;display:none;align-items:center;justify-content:center">
+  <div style="background:white;border-radius:20px;padding:28px;max-width:780px;width:90%;max-height:85vh;overflow:auto;margin:20px;box-shadow:0 20px 60px rgba(0,0,0,0.15)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h2 style="font-size:1.15rem;font-weight:600;color:#1d1d1f">Öğrenci Yönetimi</h2>
+      <button id="closeAdmin" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#c0c0c5">&times;</button>
+    </div>
+    <div id="adminContent" style="text-align:left;color:#8e8e93">Yükleniyor...</div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

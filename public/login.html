@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Giriş Yap - Kimya_not</title>
+<link rel="stylesheet" href="style.css">
+<style>
+.auth-container { max-width: 400px; margin: 60px auto; padding: 0 20px; }
+.auth-box { background: white; border: 1px solid #e8e8ed; border-radius: 20px; padding: 36px 28px; box-shadow: 0 2px 12px rgba(0,0,0,0.04); }
+.auth-box h2 { text-align: center; font-size: 1.3rem; font-weight: 600; margin-bottom: 4px; color: #1d1d1f; }
+.auth-box .sub { text-align: center; color: #8e8e93; font-size: 0.85rem; margin-bottom: 28px; font-weight: 350; }
+.form-group { margin-bottom: 18px; }
+.form-group label { display: block; font-size: 0.78rem; font-weight: 500; margin-bottom: 6px; color: #6e6e73; letter-spacing: 0.3px; }
+.form-group input { width: 100%; padding: 12px 14px; background: #fafafa; border: 1px solid #e0e0e5; border-radius: 12px; font-size: 0.9rem; color: #1d1d1f; transition: all 0.2s; box-sizing: border-box; font-family: inherit; }
+.form-group input:focus { outline: none; border-color: #80b0ff; background: white; box-shadow: 0 0 0 3px rgba(0,86,204,0.08); }
+.form-group input::placeholder { color: #c0c0c5; }
+.form-row { display: flex; gap: 12px; }
+.form-row .form-group { flex: 1; }
+.btn { width: 100%; padding: 13px; border: none; border-radius: 12px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.2s; font-family: inherit; }
+.btn-primary { background: #0a1a3a; color: white; }
+.btn-primary:hover { background: #122a5a; box-shadow: 0 4px 16px rgba(10,26,58,0.15); }
+.error-msg { color: #d32f2f; font-size: 0.82rem; text-align: center; margin-bottom: 12px; min-height: 20px; }
+.tab-bar { display: flex; margin-bottom: 24px; border-bottom: 1px solid #eee; }
+.tab { flex: 1; text-align: center; padding: 12px; font-weight: 500; font-size: 0.85rem; cursor: pointer; color: #b0b0b5; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all 0.2s; }
+.tab.active { color: #0a1a3a; border-bottom-color: #0a1a3a; }
+.form-panel { display: none; }
+.form-panel.active { display: block; }
+@media (max-width: 600px) { .auth-container { margin: 30px auto; } .auth-box { padding: 28px 20px; } }
+</style>
+</head>
+<body>
+<div class="auth-container">
+  <header style="margin-bottom:24px;padding:0">
+    <div class="header-inner">
+      <img src="/logo.png" alt="Logo" style="height:36px">
+      <div>
+        <h1 style="font-size:1.4rem">Kimya_not</h1>
+      </div>
+    </div>
+  </header>
+  <div class="auth-box">
+    <div class="tab-bar">
+      <div class="tab active" data-tab="giris">Giriş Yap</div>
+      <div class="tab" data-tab="kayit">Kayıt Ol</div>
+    </div>
+    <div id="errorMsg" class="error-msg"></div>
+    <div id="girisPanel" class="form-panel active">
+      <h2>Hoş Geldiniz</h2>
+      <p class="sub">Notlara erişmek için giriş yapın</p>
+      <form id="loginForm">
+        <div class="form-group">
+          <label>Kullanıcı Adı</label>
+          <input type="text" name="username" placeholder="Kullanıcı adınız" required autocomplete="username">
+        </div>
+        <div class="form-group">
+          <label>Şifre</label>
+          <input type="password" name="password" placeholder="Şifreniz" required autocomplete="current-password">
+        </div>
+        <button type="submit" class="btn btn-primary">Giriş Yap</button>
+      </form>
+    </div>
+    <div id="kayitPanel" class="form-panel">
+      <h2>Kayıt Ol</h2>
+      <p class="sub">Yeni hesap oluşturun</p>
+      <form id="registerForm">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Ad</label>
+            <input type="text" name="name" placeholder="Ad" required>
+          </div>
+          <div class="form-group">
+            <label>Soyad</label>
+            <input type="text" name="surname" placeholder="Soyad" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Kullanıcı Adı</label>
+          <input type="text" name="username" placeholder="Kullanıcı adı" required autocomplete="username">
+        </div>
+        <div class="form-group">
+          <label>Şifre</label>
+          <input type="password" name="password" placeholder="Şifre" required autocomplete="new-password">
+        </div>
+        <button type="submit" class="btn btn-primary">Kayıt Ol</button>
+      </form>
+    </div>
+  </div>
+</div>
+<script>
+const tabs = document.querySelectorAll(".tab");
+const panels = { giris: document.getElementById("girisPanel"), kayit: document.getElementById("kayitPanel") };
+const errorMsg = document.getElementById("errorMsg");
+tabs.forEach((tab) => { tab.addEventListener("click", () => { tabs.forEach((t) => t.classList.remove("active")); tab.classList.add("active"); Object.values(panels).forEach((p) => p.classList.remove("active")); panels[tab.dataset.tab].classList.add("active"); errorMsg.textContent = ""; }); });
+function showError(msg) { errorMsg.textContent = msg; }
+document.getElementById("loginForm").addEventListener("submit", async (e) => { e.preventDefault(); const fd = new FormData(e.target); const res = await fetch("/api/giris", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username: fd.get("username"), password: fd.get("password") }) }); const data = await res.json(); if (data.error) return showError(data.error); window.location.href = "/"; });
+document.getElementById("registerForm").addEventListener("submit", async (e) => { e.preventDefault(); const fd = new FormData(e.target); const res = await fetch("/api/kayit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username: fd.get("username"), password: fd.get("password"), name: fd.get("name"), surname: fd.get("surname") }) }); const data = await res.json(); if (data.error) return showError(data.error); window.location.href = "/"; });
+</script>
+<script>document.addEventListener("contextmenu",e=>e.preventDefault());document.addEventListener("keydown",e=>{if(e.ctrlKey&&(e.key==="s"||e.key==="S"||e.key==="p"||e.key==="P"))e.preventDefault()});document.addEventListener("dragstart",e=>e.preventDefault());</script>
+</body>
+</html>

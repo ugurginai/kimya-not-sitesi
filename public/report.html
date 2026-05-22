@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Öğrenci Analiz Raporu</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Roboto,sans-serif; background:#e8eaed; color:#1d1d1f; display:flex; flex-direction:column; align-items:center; padding:20px; -webkit-font-smoothing:antialiased; }
+.rapor { max-width:700px; width:100%; background:white; border-radius:24px; padding:36px 32px; box-shadow:0 20px 60px rgba(0,0,0,0.08); margin-bottom:20px; }
+.header { text-align:center; padding-bottom:20px; border-bottom:2px solid #0a1a3a; margin-bottom:24px; }
+.header h1 { font-size:1.4rem; font-weight:800; color:#0a1a3a; letter-spacing:-0.5px; }
+.header .sub { font-size:0.8rem; color:#8e8e93; margin-top:4px; font-weight:400; }
+.header .date { font-size:0.72rem; color:#b0b0b5; margin-top:8px; }
+.student-info { display:flex; align-items:center; gap:14px; margin-bottom:20px; padding:16px; background:#f5f8ff; border-radius:14px; border:1px solid #e0e8f5; }
+.student-avatar { width:44px; height:44px; border-radius:50%; background:#0056cc; color:white; display:flex; align-items:center; justify-content:center; font-size:1.1rem; font-weight:600; flex-shrink:0; }
+.student-detail { flex:1; }
+.student-name { font-size:1.05rem; font-weight:600; color:#1d1d1f; }
+.student-meta { font-size:0.78rem; color:#8e8e93; margin-top:2px; }
+.section-title { font-size:0.95rem; font-weight:650; color:#0a1a3a; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+.progress-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:20px; }
+.pg-item { background:#f5f8ff; border-radius:12px; padding:14px; text-align:center; border:1px solid #e0e8f5; }
+.pg-label { font-size:0.7rem; font-weight:600; color:#0056cc; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.3px; }
+.pg-value { font-size:1.3rem; font-weight:800; color:#0a1a3a; }
+.pg-bar { height:6px; background:#e8e8ed; border-radius:3px; overflow:hidden; margin-top:8px; }
+.pg-fill { height:100%; border-radius:3px; transition:width 0.5s; }
+.topic-table { width:100%; border-collapse:collapse; margin-bottom:16px; font-size:0.82rem; }
+.topic-table th { text-align:left; padding:8px 10px; background:#f5f6f8; color:#555; font-weight:600; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.3px; }
+.topic-table td { padding:7px 10px; border-bottom:1px solid #f0f0f2; }
+.topic-table .status-done { color:#2e7d32; }
+.topic-table .status-missing { color:#d32f2f; }
+.chart-section { margin-bottom:16px; }
+.chart-title { font-size:0.8rem; font-weight:600; color:#1d1d1f; margin-bottom:8px; }
+.chart-bar-container { display:flex; align-items:flex-end; gap:6px; height:60px; }
+.chart-bar-wrap { flex:1; display:flex; flex-direction:column; align-items:center; }
+.chart-bar { width:100%; border-radius:4px 4px 0 0; min-height:4px; transition:height 0.3s; }
+.chart-label { font-size:0.55rem; color:#8e8e93; margin-top:4px; }
+.footer { text-align:center; padding-top:16px; border-top:1px solid #e8e8ed; margin-top:16px; font-size:0.72rem; color:#b0b0b5; }
+.print-btn { padding:12px 28px; background:#0a1a3a; color:white; border:none; border-radius:12px; font-size:0.9rem; font-weight:600; cursor:pointer; font-family:inherit; margin-bottom:20px; transition:background 0.2s; }
+.print-btn:hover { background:#1a2a4a; }
+.loading { text-align:center; padding:60px; color:#8e8e93; font-size:1rem; }
+@media print { body { background:white; padding:0; } .print-btn { display:none; } .rapor { box-shadow:none; border-radius:0; padding:24px; margin:0; } }
+@media (max-width:600px) { .rapor { padding:20px 16px; } .progress-grid { grid-template-columns:1fr; } .header h1 { font-size:1.1rem; } }
+</style>
+</head>
+<body>
+<button class="print-btn" onclick="window.print()">🖨️ PDF Olarak Kaydet / Yazdır</button>
+<div class="rapor" id="rapor">
+  <div class="header">
+    <h1>KİMYA_NOT ÖĞRENCİ ANALİZ RAPORU</h1>
+    <div class="sub">Başarıya Doğru çözüm ve kaliteli notlarla gidilir</div>
+    <div class="date" id="reportDate"></div>
+  </div>
+  <div id="reportContent" class="loading">Rapor oluşturuluyor...</div>
+</div>
+<script>
+const params = new URLSearchParams(location.search);
+const username = params.get("username");
+document.getElementById("reportDate").textContent = "Rapor Tarihi: " + new Date().toLocaleDateString("tr-TR",{day:"numeric",month:"long",year:"numeric"});
+
+if (!username) {
+  document.getElementById("reportContent").innerHTML = '<div style="color:#d32f2f;text-align:center">Kullanıcı adı belirtilmedi</div>';
+} else {
+  fetch("/api/report/"+encodeURIComponent(username)).then(r=>r.json()).then(u => {
+    if (u.error) { document.getElementById("reportContent").innerHTML = '<div style="color:#d32f2f;text-align:center">'+u.error+'</div>'; return; }
+    const dot = u.online ? '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#2e7d32;margin-right:4px;animation:pulse 2s infinite;vertical-align:middle"></span>' : '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#d0d0d5;margin-right:4px;vertical-align:middle"></span>';
+    const lastActive = u.lastActive ? new Date(u.lastActive).toLocaleDateString("tr-TR",{day:"numeric",month:"long",year:"numeric",hour:"2-digit",minute:"2-digit"}) : "Bilinmiyor";
+    document.getElementById("reportContent").innerHTML = `
+      <div class="student-info">
+        <div class="student-avatar">${(u.name.charAt(0)+u.surname.charAt(0)).toUpperCase()}</div>
+        <div class="student-detail">
+          <div class="student-name">${u.name} ${u.surname}</div>
+          <div class="student-meta">@${u.username} ${dot} ${u.online?"Çevrimiçi":"Çevrimdışı"} · ⭐${u.stars} · Son giriş: ${lastActive}</div>
+        </div>
+      </div>
+      <div class="progress-grid">
+        <div class="pg-item"><div class="pg-label">TYT</div><div class="pg-value">%${u.tytPct}</div><div class="pg-bar"><div class="pg-fill" style="width:${u.tytPct}%;background:${u.tytPct>=80?'#2e7d32':u.tytPct>=50?'#f5a623':'#d32f2f'}"></div></div></div>
+        <div class="pg-item"><div class="pg-label">AYT</div><div class="pg-value">%${u.aytPct}</div><div class="pg-bar"><div class="pg-fill" style="width:${u.aytPct}%;background:${u.aytPct>=80?'#2e7d32':u.aytPct>=50?'#f5a623':'#d32f2f'}"></div></div></div>
+        <div class="pg-item"><div class="pg-label">Genel Başarı</div><div class="pg-value">%${u.genPct}</div><div class="pg-bar"><div class="pg-fill" style="width:${u.genPct}%;background:${u.genPct>=80?'#2e7d32':u.genPct>=50?'#f5a623':'#d32f2f'}"></div></div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px">
+        <div style="background:#f5f8ff;border-radius:12px;padding:12px;border:1px solid #e0e8f5"><div style="font-size:0.72rem;font-weight:600;color:#0056cc;margin-bottom:6px">🔥 Çalışma Serisi</div><div style="font-size:1.1rem;font-weight:700;color:#0a1a3a">${u.streak} gün</div></div>
+        <div style="background:#f5f8ff;border-radius:12px;padding:12px;border:1px solid #e0e8f5"><div style="font-size:0.72rem;font-weight:600;color:#0056cc;margin-bottom:6px">📅 Toplam Çalışma</div><div style="font-size:1.1rem;font-weight:700;color:#0a1a3a">${u.totalDays} gün</div></div>
+      </div>
+      <div class="section-title">📊 Haftalık Çalışma Grafiği (${Math.round(u.weekActive/60)}dk)</div>
+      <div class="chart-section"><div class="chart-bar-container">${(()=>{const max=Math.max(...u.weeklyChart.map(w=>w.active),1);return u.weeklyChart.map(w=>{const h=Math.max(4,(w.active/max)*56);const c=w.active>120?'#2e7d32':w.active>0?'#0056cc':'#e0e0e5';return '<div class="chart-bar-wrap"><div class="chart-bar" style="height:'+h+'px;background:'+c+'"></div><div class="chart-label">'+new Date(w.date).toLocaleDateString("tr-TR",{weekday:"short"})+'</div></div>'}).join('')})()}</div></div>
+      <div class="section-title">📅 Bu Hafta Planlanan Konular</div>
+      <div style="margin-bottom:16px">${(()=>{let phtml='';u.weeklyPlan.forEach(w=>{const items=(w.plan||[]).filter(p=>p.status==='planned'||p.status==='working');if(items.length){const d=new Date(w.date);phtml+='<div style="margin-bottom:6px;padding:8px 10px;background:#f5f8ff;border-radius:10px;border:1px solid #e0e8f5"><div style="font-size:0.72rem;font-weight:600;color:#0056cc;margin-bottom:4px">'+d.toLocaleDateString("tr-TR",{day:"numeric",month:"short",weekday:"short"})+'</div>'+items.map(p=>{const st=p.status==='working'?'🟨':'🟦';return '<span style="display:inline-block;font-size:0.72rem;margin:2px;padding:3px 8px;background:white;border-radius:6px;border:1px solid #e0e8f5">'+st+' '+(p.type==='tyt'?'🧪':'⚗️')+' '+(p.topicName||(p.type==='tyt'?['Kimya Bilimi','Atom ve Periyodik Tablo','Kimyasal Türlerarası Etkileşimler','Maddenin Halleri','Doğa ve Kimya','Kimyanın Temel Kanunları','Kimyasal Hesaplamalar','Karışımlar','Asit Baz Tuz','Kimya Her Yerde'][p.topicIdx]:['Modern Atom Teorisi','Gazlar','Sıvı Çözeltiler','Kimyasal Tepkimelerde Entalpi','Kimyasal Tepkimelerde Hız','Kimyasal Tepkimelerde Denge','Asit Baz Dengesi','Çözünürlük Dengesi','Elektrokimya','Karbon Kimyasına Giriş','Organik Kimya'][p.topicIdx]))+'</span>'}).join('')+'</div>'}});return phtml||'<div style="font-size:0.78rem;color:#999;text-align:center">Bu hafta için planlanmış konu yok.</div>';})()}</div>
+      <div class="section-title">📋 Konu Analizi</div>
+      <table class="topic-table"><thead><tr><th>Konu</th><th>Durum</th></tr></thead><tbody>
+        ${u.tytTopics.map(t=>'<tr><td>🧪 TYT - '+t+'</td><td class="status-done">✅ Tamamlandı</td></tr>').join('')}
+        ${u.aytTopics.map(t=>'<tr><td>⚗️ AYT - '+t+'</td><td class="status-done">✅ Tamamlandı</td></tr>').join('')}
+        ${u.missingTyt.map(t=>'<tr><td>🧪 TYT - '+t+'</td><td class="status-missing">❌ Eksik</td></tr>').join('')}
+        ${u.missingAyt.map(t=>'<tr><td>⚗️ AYT - '+t+'</td><td class="status-missing">❌ Eksik</td></tr>').join('')}
+      </tbody></table>
+      <div class="section-title">💡 Öneriler</div>
+      <div style="background:#fff8e1;border:1px solid #ffe082;border-radius:12px;padding:14px;font-size:0.82rem;color:#1d1d1f;line-height:1.5">
+        ${u.missingTyt.length ? '<div>📌 TYT öncelik: <strong>'+u.missingTyt.slice(0,3).join(', ')+'</strong></div>' : ''}
+        ${u.missingAyt.length ? '<div>📌 AYT öncelik: <strong>'+u.missingAyt.slice(0,3).join(', ')+'</strong></div>' : ''}
+        ${u.streak < 3 ? '<div>🔥 Düzenli çalışmaya başlamak için hedef belirleyin.</div>' : '<div>🔥 Düzenli çalışıyorsunuz, aynı tempoda devam edin!</div>'}
+        ${u.genPct < 50 ? '<div>💪 Eksik konulara yoğunlaşarak başarı oranınızı artırabilirsiniz.</div>' : u.genPct < 80 ? '<div>💪 İyi gidiyorsunuz! Kalan eksikleri tamamlayarak hedefe ulaşın.</div>' : '<div>🏆 Mükemmel! Tüm konuları tamamlamaya çok yakınsınız.</div>'}
+      </div>
+      <div class="footer">KİMYA_NOT Premium Eğitim Platformu — ${document.getElementById("reportDate").textContent}</div>
+    `;
+  }).catch(() => { document.getElementById("reportContent").innerHTML = '<div style="color:#d32f2f;text-align:center">Rapor yüklenirken hata oluştu</div>'; });
+}
+
+document.addEventListener("contextmenu", e => e.preventDefault());
+document.addEventListener("keydown", e => { if (e.ctrlKey && (e.key === "s" || e.key === "S" || e.key === "u" || e.key === "U")) e.preventDefault(); });
+</script>
+</body>
+</html>

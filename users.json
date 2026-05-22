@@ -1,0 +1,23 @@
+{
+  "ugurginkimya@gmail.com": {
+    "password": "191435U.g"
+  },
+  "Kimya_not": {
+    "password": "191435U.g",
+    "name": "Admin",
+    "surname": "",
+    "role": "admin"
+  },
+  "Ugurgin": {
+    "password": "12345",
+    "name": "Uğur ",
+    "surname": "Gın",
+    "role": "user"
+  },
+  "arzumişa": {
+    "password": "19053435Gs",
+    "name": "Arzu",
+    "surname": "Özdemir ",
+    "role": "user"
+  }
+}
