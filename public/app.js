@@ -1,3 +1,6 @@
+window.addEventListener("error", function(e) { alert("JS HATASI: " + e.message + " at " + e.filename + ":" + e.lineno); });
+window.addEventListener("unhandledrejection", function(e) { alert("PROMISE HATASI: " + e.reason); });
+
 const TYT_TOPICS = ["Kimya Bilimi","Atom ve Periyodik Tablo","Kimyasal Türlerarası Etkileşimler","Maddenin Halleri","Doğa ve Kimya","Kimyanın Temel Kanunları","Kimyasal Hesaplamalar","Karışımlar","Asit Baz Tuz","Kimya Her Yerde"];
 const AYT_TOPICS = ["Modern Atom Teorisi","Gazlar","Sıvı Çözeltiler","Kimyasal Tepkimelerde Entalpi","Kimyasal Tepkimelerde Hız","Kimyasal Tepkimelerde Denge","Asit Baz Dengesi","Çözünürlük Dengesi","Elektrokimya","Karbon Kimyasına Giriş","Organik Kimya"];
 
@@ -369,7 +372,12 @@ async function renderAdminNotes() {
 
   try {
     const res = await fetch("/api/notes");
-    const data = await res.json();
+    const txt = await res.text();
+    let data;
+    try { data = JSON.parse(txt); } catch(ee) {
+      container.innerHTML = '<div style="color:#d32f2f;text-align:center;padding:20px">NOTLAR JSON HATASI (ilk 500): ' + txt.substring(0,500) + '</div>';
+      return;
+    }
     let html = '<div style="margin-bottom:16px">' +
       '<button id="adminAddNoteBtn" style="padding:10px 20px;background:#2e7d32;color:white;border:none;border-radius:10px;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit">📤 Yeni Not Ekle</button>' +
       '</div>';
@@ -499,12 +507,17 @@ function showAddNoteForm() {
 
     try {
       const res = await fetch("/api/notes/upload", { method: "POST", body: formData });
-      const data = await res.json();
+      const txt = await res.text();
+      let data;
+      try { data = JSON.parse(txt); } catch(ee) {
+        errorEl.textContent = "SUNUCU YANITI (ilk 300): " + txt.substring(0,300);
+        return;
+      }
       if (data.error) { errorEl.textContent = data.error; return; }
       overlay.remove();
       renderAdminNotes();
     } catch (err) {
-      errorEl.textContent = "Yükleme hatası: " + err.message;
+      errorEl.textContent = "YÜKLEME HATASI: " + err.message + " (stack: " + (err.stack||"").substring(0,300) + ")";
     }
   });
 }
