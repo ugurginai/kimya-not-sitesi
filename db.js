@@ -2,12 +2,12 @@ const { Pool } = require('pg');
 
 let pool;
 
-function init() {
+async function init() {
   pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
   });
-  createTables();
+  await createTables();
   return pool;
 }
 
