@@ -75,6 +75,8 @@ fetch("/api/me").then(r => r.json()).then(data => {
     if (plb) plb.style.display = "none";
   }
   lbRefreshTimer = setInterval(loadLeaderboard, 15000);
+  loadOnlineNow();
+  setInterval(loadOnlineNow, 10000);
   initTopicSystem();
 }).catch(() => { window.location.href = "/login.html"; });
 
@@ -620,6 +622,8 @@ function navigate(path) {
   currentPath = ""; renderBreadcrumbs(""); loadFiles("");
   window.history.replaceState(null, "", "#");
   document.getElementById("leaderboard").style.display = "block";
+  const on = document.getElementById("onlineNowSection");
+  if (on) on.style.display = "block";
   if (countdownSection) countdownSection.style.display = "block";
   if (topicSection) topicSection.style.display = "block";
   const plb = document.getElementById("progressLBSection");
@@ -1052,29 +1056,29 @@ function generateReport(username) {
   window.open(`/report.html?username=${encodeURIComponent(username)}`, "_blank", "width=800,height=900");
 }
 
+function loadOnlineNow() {
+  const container = document.getElementById("onlineNowContent");
+  if (!container) return;
+  fetch("/api/leaderboard").then(r => r.json()).then(res => {
+    const online = (res.users || []).filter(u => u.online);
+    if (!online.length) {
+      container.innerHTML = '<div class="online-empty">Şu anda çevrimiçi kimse yok</div>';
+      return;
+    }
+    container.innerHTML = online.map(u => {
+      const initial = (u.name.charAt(0)+u.surname.charAt(0)).toUpperCase() || u.username.charAt(0).toUpperCase();
+      return '<span class="online-user"><span class="online-dot"></span><span>' + esc(u.name) + ' ' + esc(u.surname) + '</span></span>';
+    }).join('');
+  }).catch(() => { container.innerHTML = ''; });
+}
+
 function loadLeaderboard() {
   fetch("/api/leaderboard").then(r => r.json()).then(res => {
     const list = res.users || [];
-    const onlineCount = res.onlineCount || 0;
-    const onlineSection = document.getElementById("onlineSection");
-    const onlineUsers = list.filter(u => u.online);
 
     if (!list.length) {
       lbContent.innerHTML = '<div style="text-align:center;color:#b0b0b5;padding:16px;font-size:0.85rem">Henüz üye yok</div>';
-      if (onlineSection) onlineSection.innerHTML = '';
       return;
-    }
-
-    if (onlineSection) {
-      if (!onlineUsers.length) {
-        onlineSection.innerHTML = '';
-      } else {
-        onlineSection.innerHTML = `<div style="font-size:0.85rem;font-weight:600;color:#1d1d1f;margin-bottom:10px">🟢 Şu Anda Çalışanlar (${onlineCount})</div><div style="display:flex;flex-wrap:wrap;gap:8px">` +
-          onlineUsers.map(u => {
-            const initial = (u.name.charAt(0)+u.surname.charAt(0)).toUpperCase() || u.username.charAt(0).toUpperCase();
-            return `<div style="display:flex;align-items:center;gap:8px;background:#f0f7ff;border:1px solid #d0e4ff;border-radius:12px;padding:8px 12px;box-shadow:0 0 12px rgba(0,86,204,0.06)"><div style="width:28px;height:28px;border-radius:50%;background:#0056cc;color:white;display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-weight:600;flex-shrink:0">${initial}</div><div><div style="font-size:0.78rem;font-weight:500;color:#1d1d1f">${esc(u.name)} ${esc(u.surname)}</div><div style="font-size:0.7rem;color:#8e8e93">⭐ ${u.stars} · @${esc(u.username)}</div></div><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#2e7d32;box-shadow:0 0 6px rgba(46,125,50,0.6);animation:pulse 2s infinite;margin-left:auto;flex-shrink:0"></span></div>`;
-          }).join('') + '</div>';
-      }
     }
 
     const top = list.slice(0, 5);

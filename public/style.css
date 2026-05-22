@@ -133,6 +133,13 @@ header h1 { font-size:2rem; font-weight:800; color:#0a1a3a; letter-spacing:-0.8p
 .plb-pct { font-size:0.72rem; font-weight:700; width:36px; text-align:right; flex-shrink:0; }
 .plb-meta { font-size:0.68rem; color:#b0b0b5; margin-top:6px; text-align:center; }
 
+/* Online Now */
+.online-card { background:white; border:1px solid #e8e8ed; border-radius:20px; padding:20px; margin-bottom:20px; box-shadow:0 1px 3px rgba(0,0,0,0.04); }
+.online-title { font-size:0.95rem; font-weight:650; color:#1d1d1f; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+.online-user { display:inline-flex; align-items:center; gap:6px; background:#f0f7ff; border:1px solid #d0e4ff; border-radius:10px; padding:6px 10px; margin:3px 4px; font-size:0.82rem; font-weight:500; color:#1d1d1f; }
+.online-dot { width:8px; height:8px; border-radius:50%; background:#2e7d32; box-shadow:0 0 6px rgba(46,125,50,0.5); animation:pulse 2s infinite; flex-shrink:0; }
+.online-empty { text-align:center; color:#b0b0b5; font-size:0.82rem; padding:8px; }
+
 /* Recent Uploads */
 .recent-card { background:white; border:1px solid #e8e8ed; border-radius:20px; padding:20px; margin-bottom:20px; box-shadow:0 1px 3px rgba(0,0,0,0.04); }
 .recent-title { font-size:0.95rem; font-weight:650; color:#1d1d1f; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
