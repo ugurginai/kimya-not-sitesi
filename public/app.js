@@ -616,44 +616,39 @@ function renderBreadcrumbs(path) {
 }
 
 function navigate(path) {
-  currentPath = path; renderBreadcrumbs(path); loadFiles(path);
-  window.history.replaceState(null, "", "#"+path);
-  const show = !currentPath;
-  document.getElementById("leaderboard").style.display = show ? "block" : "none";
-  if (countdownSection) countdownSection.style.display = show ? "block" : "none";
-  if (topicSection) topicSection.style.display = show ? "block" : "none";
+  if (path) { navigate(""); return; }
+  currentPath = ""; renderBreadcrumbs(""); loadFiles("");
+  window.history.replaceState(null, "", "#");
+  document.getElementById("leaderboard").style.display = "block";
+  if (countdownSection) countdownSection.style.display = "block";
+  if (topicSection) topicSection.style.display = "block";
   const plb = document.getElementById("progressLBSection");
-  if (plb) plb.style.display = show && currentUser?.role === "admin" ? "block" : "none";
+  if (plb) plb.style.display = currentUser?.role === "admin" ? "block" : "none";
   const rec = document.getElementById("recentSection");
-  if (rec) rec.style.display = show ? "block" : "none";
+  if (rec) rec.style.display = "block";
   const calSec = document.getElementById("calendarSection");
-  if (calSec) calSec.style.display = show ? "block" : "none";
+  if (calSec) calSec.style.display = "block";
 }
 
 function loadFiles(path) {
   if (!path) {
     fileList.className = "file-list cards";
     fileList.innerHTML = rootCards.map(c => `<a class="card-item" href="#" data-path="${c.name}"><div class="card-icon">${c.icon}</div><div class="card-title">${c.label}</div><div class="card-desc">${c.desc}</div></a>`).join("");
-    fileList.querySelectorAll(".card-item").forEach(a => a.addEventListener("click", e => { e.preventDefault(); navigate(a.dataset.path); }));
+    fileList.querySelectorAll(".card-item").forEach(a => a.addEventListener("click", e => {
+      e.preventDefault();
+      const sectionNames = ["TYT", "AYT", "Deneme"];
+      const idx = sectionNames.indexOf(a.dataset.path);
+      if (idx >= 0) {
+        const sections = document.querySelectorAll(".ta-section");
+        if (sections[idx]) {
+          sections[idx].classList.add("open");
+          setTimeout(() => sections[idx].scrollIntoView({ behavior: "smooth", block: "start" }), 150);
+        }
+      }
+    }));
     return;
   }
-  fileList.className = "file-list";
-  fileList.innerHTML = '<div class="loading">Yükleniyor...</div>';
-  const url = "/api/files"+(path?"?path="+encodeURIComponent(path):"");
-  fetch(url).then(r=>r.json()).then(items => {
-    if (!items.length) { fileList.innerHTML = '<div class="empty-state"><div class="icon">📂</div><div>Bu klasörde dosya bulunmuyor</div></div>'; return; }
-    fileList.innerHTML = items.map(item => {
-      const icon = item.isDirectory ? (item.name==="Konu Anlatımı"?"📖":item.name==="Sorular"?"✍️":item.name==="Slayt"?"🖥️":item.name==="Video"?"🎬":item.name==="İnografi"||item.name==="İnografik"?"📊":"📁") : (()=>{const e=item.name.split(".").pop().toLowerCase();return e==="pdf"?"📄":e==="png"||e==="jpg"||e==="jpeg"?"🖼️":e==="mp4"?"🎬":"📎"})();
-      const size = item.size?formatSize(item.size):"";
-      const date = item.mtime?formatDate(item.mtime):"";
-      const meta = [size,date].filter(Boolean).join(" · ");
-      const ep = item.path.replace(/\\/g,"/");
-      if (item.isDirectory) return `<a class="file-item" href="#" data-path="${item.path}"><div class="file-icon">${icon}</div><div class="file-info"><div class="file-name">${esc(item.name)}</div><div class="file-meta">Klasör</div></div></a>`;
-      const viewUrl = `/viewer.html?file=${encodeURIComponent(ep)}&name=${encodeURIComponent(item.name)}`;
-      return `<a class="file-item" href="${viewUrl}" target="_blank"><div class="file-icon">${icon}</div><div class="file-info"><div class="file-name">${esc(item.name)}</div><div class="file-meta">${meta}</div></div></a>`;
-    }).join("");
-    fileList.querySelectorAll("a[data-path]").forEach(a => a.addEventListener("click", e => { e.preventDefault(); navigate(a.dataset.path); }));
-  }).catch(err => { fileList.innerHTML = `<div class="empty-state" style="color:#d32f2f">Hata: ${err.message}</div>`; });
+  navigate("");
 }
 
 function esc(t) { const d=document.createElement("div"); d.textContent=t; return d.innerHTML; }
