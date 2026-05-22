@@ -385,8 +385,14 @@ async function renderAdminNotes() {
       html += '<th style="padding:10px 12px;text-align:right;color:#555;font-weight:500">İşlem</th>';
       html += '</tr></thead><tbody>';
       data.notes.forEach(n => {
-        const topicName = n.topic_type === "tyt" ? TYT_TOPICS[n.topic_index] : AYT_TOPICS[n.topic_index];
-        const typeIcon = n.topic_type === "tyt" ? "🧪" : "⚗️";
+        let topicName, typeIcon;
+        if (n.topic_type === "deneme") {
+          typeIcon = "📋";
+          topicName = n.topic_index == 0 ? "TYT Deneme" : "AYT Deneme";
+        } else {
+          topicName = n.topic_type === "tyt" ? TYT_TOPICS[n.topic_index] : AYT_TOPICS[n.topic_index];
+          typeIcon = n.topic_type === "tyt" ? "🧪" : "⚗️";
+        }
         const fileUrl = "/uploads/notes/" + encodeURIComponent(n.filename);
         html += '<tr>' +
           '<td style="padding:10px 12px;font-weight:500">' + esc(n.title) + (n.description ? '<br><span style="font-size:0.72rem;color:#8e8e93">' + esc(n.description) + '</span>' : '') + '</td>' +
@@ -425,6 +431,7 @@ function showAddNoteForm() {
           <select id="nf_type" style="flex:1;padding:10px 12px;border:1px solid #e0e0e5;border-radius:10px;font-size:0.85rem;font-family:inherit;background:white">
             <option value="tyt">🧪 TYT Kimya</option>
             <option value="ayt">⚗️ AYT Kimya</option>
+            <option value="deneme">📋 Deneme</option>
           </select>
           <select id="nf_topic" style="flex:2;padding:10px 12px;border:1px solid #e0e0e5;border-radius:10px;font-size:0.85rem;font-family:inherit;background:white"></select>
         </div>
@@ -446,8 +453,13 @@ function showAddNoteForm() {
   const typeSel = overlay.querySelector("#nf_type");
   const topicSel = overlay.querySelector("#nf_topic");
   function updateTopics() {
-    const list = typeSel.value === "tyt" ? TYT_TOPICS : AYT_TOPICS;
-    topicSel.innerHTML = list.map((t, i) => '<option value="' + i + '">' + t + '</option>').join("");
+    const val = typeSel.value;
+    if (val === "deneme") {
+      topicSel.innerHTML = '<option value="0">🧪 TYT Deneme</option><option value="1">⚗️ AYT Deneme</option>';
+    } else {
+      const list = val === "tyt" ? TYT_TOPICS : AYT_TOPICS;
+      topicSel.innerHTML = list.map((t, i) => '<option value="' + i + '">' + t + '</option>').join("");
+    }
   }
   typeSel.addEventListener("change", updateTopics);
   updateTopics();
@@ -629,10 +641,47 @@ function loadFiles(path) {
 
 function esc(t) { const d=document.createElement("div"); d.textContent=t; return d.innerHTML; }
 
+async function loadDenemeNotes() {
+  try {
+    const res = await fetch("/api/notes?type=deneme");
+    const data = await res.json();
+    const el = document.getElementById("denemeNotes");
+    if (!el) return;
+    if (!data.notes || !data.notes.length) {
+      el.innerHTML = '<div style="text-align:center;color:#b0b0b5;font-size:0.78rem;padding:12px">Henüz deneme eklenmemiş</div>';
+      return;
+    }
+    const tytDeneme = data.notes.filter(n => parseInt(n.topic_index) === 0);
+    const aytDeneme = data.notes.filter(n => parseInt(n.topic_index) === 1);
+    let html = "";
+    if (tytDeneme.length) {
+      html += '<div style="font-size:0.8rem;font-weight:600;color:#1d1d1f;margin-bottom:6px">🧪 TYT Denemeleri</div>';
+      html += tytDeneme.map(n => noteLinkHtml(n)).join("");
+    }
+    if (aytDeneme.length) {
+      html += '<div style="font-size:0.8rem;font-weight:600;color:#1d1d1f;margin:10px 0 6px">⚗️ AYT Denemeleri</div>';
+      html += aytDeneme.map(n => noteLinkHtml(n)).join("");
+    }
+    el.innerHTML = html;
+  } catch (err) {
+    console.error("Deneme notes load error:", err);
+  }
+}
+
+function noteLinkHtml(n) {
+  const fileUrl = "/uploads/notes/" + encodeURIComponent(n.filename);
+  return '<a href="' + fileUrl + '" target="_blank" style="display:flex;align-items:center;gap:6px;padding:6px 8px;background:#f5f8ff;border-radius:8px;margin-bottom:4px;text-decoration:none;color:#1d1d1f;font-size:0.78rem">' +
+    '<span>📄</span>' +
+    '<span style="flex:1">' + esc(n.title) + '</span>' +
+    (n.description ? '<span style="font-size:0.7rem;color:#8e8e93">' + esc(n.description) + '</span>' : '') +
+    '</a>';
+}
+
 function initTopicSystem() {
   fetch("/api/progress").then(r=>r.json()).then(d => {
     progressData = { tyt: d.tyt||[], ayt: d.ayt||[] };
     renderTopics();
+    loadDenemeNotes();
   });
 }
 
