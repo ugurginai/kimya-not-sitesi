@@ -9,6 +9,7 @@ COPY . .
 
 RUN mkdir -p uploads/notes
 
-EXPOSE 8080
+ENV PORT=8080
+EXPOSE $PORT
 
 CMD ["node", "server.js"]
