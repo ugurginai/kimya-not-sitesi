@@ -279,3 +279,5 @@ footer { text-align:center; padding:20px; color:#c0c0c5; font-size:0.75rem; }
   .cal-weekly { padding:10px; }
   .cal-weekly-bar { height:36px; }
 }
+.ta-notes { padding:4px 12px 12px !important; }
+.ta-notes a:hover { background:#e8eeff !important; }

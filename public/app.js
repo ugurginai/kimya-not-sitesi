@@ -99,11 +99,13 @@ async function loadAdminPanel(tab) {
   adminContent.innerHTML = "Yükleniyor...";
   try {
     if (tab === "takvim") { loadAdminCalendar(); return; }
+    if (tab === "notlar") { loadAdminNotes(); return; }
     const res = await fetch("/api/admin/users"); const data = await res.json();
     if (data.error) { adminContent.innerHTML = `<div style="color:#d32f2f;text-align:center;padding:20px">${data.error}</div>`; return; }
     let html = `<div style="display:flex;gap:8px;margin-bottom:16px">
       <button class="admin-tab active" data-tab="ogrenciler" style="flex:1;padding:8px;border:none;border-radius:10px;font-size:0.82rem;font-weight:600;cursor:pointer;font-family:inherit;background:#0056cc;color:white">👥 Öğrenciler</button>
       <button class="admin-tab" data-tab="takvim" style="flex:1;padding:8px;border:1px solid #e0e0e5;border-radius:10px;font-size:0.82rem;font-weight:500;cursor:pointer;font-family:inherit;background:white;color:#555">📅 Takvim</button>
+      <button class="admin-tab" data-tab="notlar" style="flex:1;padding:8px;border:1px solid #e0e0e5;border-radius:10px;font-size:0.82rem;font-weight:500;cursor:pointer;font-family:inherit;background:white;color:#555">📄 Notlar</button>
     </div>
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:16px">
       <div style="font-size:0.85rem;font-weight:600;color:#0056cc">Toplam üye: ${data.total}</div>
@@ -170,6 +172,7 @@ function loadAdminCalendar() {
   const html = `<div style="display:flex;gap:8px;margin-bottom:16px">
     <button class="admin-tab" data-tab="ogrenciler" style="flex:1;padding:8px;border:1px solid #e0e0e5;border-radius:10px;font-size:0.82rem;font-weight:500;cursor:pointer;font-family:inherit;background:white;color:#555">👥 Öğrenciler</button>
     <button class="admin-tab active" data-tab="takvim" style="flex:1;padding:8px;border:none;border-radius:10px;font-size:0.82rem;font-weight:600;cursor:pointer;font-family:inherit;background:#0056cc;color:white">📅 Takvim</button>
+    <button class="admin-tab" data-tab="notlar" style="flex:1;padding:8px;border:1px solid #e0e0e5;border-radius:10px;font-size:0.82rem;font-weight:500;cursor:pointer;font-family:inherit;background:white;color:#555">📄 Notlar</button>
   </div>
   <div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap">
     <input id="adminCalSearch" type="text" placeholder="Öğrenci ara..." style="padding:7px 12px;border:1px solid #e0e0e5;border-radius:8px;font-size:0.78rem;font-family:inherit;flex:1;min-width:120px">
@@ -343,6 +346,153 @@ function loadAdminCalendar() {
   }).catch(() => { const c = document.getElementById("adminCalContent"); if(c) c.innerHTML = '<div style="text-align:center;color:#8e8e93;padding:20px;font-size:0.82rem">Veri alınamadı</div>'; });
 }
 
+function loadAdminNotes() {
+  adminContent.innerHTML = `<div style="display:flex;gap:8px;margin-bottom:16px">
+    <button class="admin-tab" data-tab="ogrenciler" style="flex:1;padding:8px;border:1px solid #e0e0e5;border-radius:10px;font-size:0.82rem;font-weight:500;cursor:pointer;font-family:inherit;background:white;color:#555">👥 Öğrenciler</button>
+    <button class="admin-tab" data-tab="takvim" style="flex:1;padding:8px;border:1px solid #e0e0e5;border-radius:10px;font-size:0.82rem;font-weight:500;cursor:pointer;font-family:inherit;background:white;color:#555">📅 Takvim</button>
+    <button class="admin-tab active" data-tab="notlar" style="flex:1;padding:8px;border:none;border-radius:10px;font-size:0.82rem;font-weight:600;cursor:pointer;font-family:inherit;background:#0056cc;color:white">📄 Notlar</button>
+  </div>
+  <div id="adminNotesContent"><div class="loading" style="padding:20px;font-size:0.82rem">Yükleniyor...</div></div>`;
+
+  document.querySelectorAll(".admin-tab").forEach(btn => btn.addEventListener("click", function() {
+    document.querySelectorAll(".admin-tab").forEach(b => { b.style.background="white"; b.style.color="#555"; b.style.border="1px solid #e0e0e5"; b.style.fontWeight="500"; });
+    this.style.background="#0056cc"; this.style.color="white"; this.style.border="none"; this.style.fontWeight="600";
+    loadAdminPanel(this.dataset.tab);
+  }));
+
+  renderAdminNotes();
+}
+
+async function renderAdminNotes() {
+  const container = document.getElementById("adminNotesContent");
+  if (!container) return;
+
+  try {
+    const res = await fetch("/api/notes");
+    const data = await res.json();
+    let html = '<div style="margin-bottom:16px">' +
+      '<button id="adminAddNoteBtn" style="padding:10px 20px;background:#2e7d32;color:white;border:none;border-radius:10px;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit">📤 Yeni Not Ekle</button>' +
+      '</div>';
+
+    if (!data.notes || !data.notes.length) {
+      html += '<div style="text-align:center;color:#8e8e93;padding:30px;font-size:0.85rem">Henüz not eklenmemiş</div>';
+    } else {
+      html += '<div style="overflow-x:auto;border-radius:12px;border:1px solid #e8e8ed">';
+      html += '<table style="width:100%;border-collapse:collapse;font-size:0.82rem;min-width:500px"><thead><tr style="background:#f5f6f8">';
+      html += '<th style="padding:10px 12px;text-align:left;color:#555;font-weight:500">Başlık</th>';
+      html += '<th style="padding:10px 12px;text-align:left;color:#555;font-weight:500">Konu</th>';
+      html += '<th style="padding:10px 12px;text-align:center;color:#555;font-weight:500">Dosya</th>';
+      html += '<th style="padding:10px 12px;text-align:right;color:#555;font-weight:500">İşlem</th>';
+      html += '</tr></thead><tbody>';
+      data.notes.forEach(n => {
+        const topicName = n.topic_type === "tyt" ? TYT_TOPICS[n.topic_index] : AYT_TOPICS[n.topic_index];
+        const typeIcon = n.topic_type === "tyt" ? "🧪" : "⚗️";
+        const fileUrl = "/uploads/notes/" + encodeURIComponent(n.filename);
+        html += '<tr>' +
+          '<td style="padding:10px 12px;font-weight:500">' + esc(n.title) + (n.description ? '<br><span style="font-size:0.72rem;color:#8e8e93">' + esc(n.description) + '</span>' : '') + '</td>' +
+          '<td style="padding:10px 12px">' + typeIcon + ' ' + esc(topicName || "Bilinmeyen") + '</td>' +
+          '<td style="padding:10px 12px;text-align:center"><a href="' + fileUrl + '" target="_blank" style="color:#0056cc;text-decoration:none">📄 ' + esc(n.original_name) + '</a></td>' +
+          '<td style="padding:10px 12px;text-align:right"><button class="admin-note-delete" data-id="' + n.id + '" data-title="' + esc(n.title) + '" style="padding:4px 10px;background:#fff0f0;color:#d32f2f;border:1px solid #ffd0d0;border-radius:6px;font-size:0.72rem;cursor:pointer;font-family:inherit">Sil</button></td>' +
+          '</tr>';
+      });
+      html += '</tbody></table></div>';
+    }
+    container.innerHTML = html;
+
+    document.getElementById("adminAddNoteBtn")?.addEventListener("click", showAddNoteForm);
+    document.querySelectorAll(".admin-note-delete").forEach(btn => {
+      btn.addEventListener("click", function() {
+        if (confirm('"' + this.dataset.title + '" adlı notu silmek istediğinize emin misiniz?')) {
+          fetch("/api/notes/" + this.dataset.id, { method: "DELETE" })
+            .then(r => r.json()).then(d => { if (d.success) renderAdminNotes(); else alert(d.error); });
+        }
+      });
+    });
+  } catch (err) {
+    container.innerHTML = '<div style="color:#d32f2f;text-align:center;padding:20px">Hata: ' + err.message + '</div>';
+  }
+}
+
+function showAddNoteForm() {
+  const overlay = document.createElement("div");
+  overlay.innerHTML = `<div style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.3);backdrop-filter:blur(4px);z-index:1100;display:flex;align-items:center;justify-content:center" onclick="if(event.target===this)this.remove()">
+    <div style="background:white;border-radius:20px;padding:28px;max-width:450px;width:90%;margin:20px;box-shadow:0 20px 60px rgba(0,0,0,0.15)" onclick="event.stopPropagation()">
+      <h3 style="font-size:1.1rem;font-weight:600;color:#1d1d1f;margin-bottom:16px">📤 Yeni Not Ekle</h3>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <input id="nf_title" placeholder="Not başlığı" style="padding:10px 12px;border:1px solid #e0e0e5;border-radius:10px;font-size:0.85rem;font-family:inherit">
+        <input id="nf_desc" placeholder="Açıklama (opsiyonel)" style="padding:10px 12px;border:1px solid #e0e0e5;border-radius:10px;font-size:0.85rem;font-family:inherit">
+        <div style="display:flex;gap:8px">
+          <select id="nf_type" style="flex:1;padding:10px 12px;border:1px solid #e0e0e5;border-radius:10px;font-size:0.85rem;font-family:inherit;background:white">
+            <option value="tyt">🧪 TYT Kimya</option>
+            <option value="ayt">⚗️ AYT Kimya</option>
+          </select>
+          <select id="nf_topic" style="flex:2;padding:10px 12px;border:1px solid #e0e0e5;border-radius:10px;font-size:0.85rem;font-family:inherit;background:white"></select>
+        </div>
+        <div style="border:2px dashed #d0d0d5;border-radius:12px;padding:20px;text-align:center;cursor:pointer;color:#8e8e93;font-size:0.82rem;background:#fafbfc" id="nf_dropzone">
+          📄 PDF dosyasını seçmek için tıkla
+          <input id="nf_file" type="file" accept=".pdf,.png,.jpg,.jpeg" style="display:none">
+        </div>
+        <div id="nf_fileName" style="font-size:0.78rem;color:#2e7d32;display:none"></div>
+        <div id="nf_error" style="color:#d32f2f;font-size:0.78rem;text-align:center"></div>
+        <div style="display:flex;gap:10px;margin-top:4px">
+          <button onclick="this.closest('div[style*=\\'fixed\\']').remove()" style="flex:1;padding:10px;background:#f5f6f8;border:none;border-radius:10px;font-size:0.85rem;font-weight:500;cursor:pointer;font-family:inherit">İptal</button>
+          <button id="nf_save" style="flex:1;padding:10px;background:#2e7d32;color:white;border:none;border-radius:10px;font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit">Notu Yükle</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+
+  const typeSel = overlay.querySelector("#nf_type");
+  const topicSel = overlay.querySelector("#nf_topic");
+  function updateTopics() {
+    const list = typeSel.value === "tyt" ? TYT_TOPICS : AYT_TOPICS;
+    topicSel.innerHTML = list.map((t, i) => '<option value="' + i + '">' + t + '</option>').join("");
+  }
+  typeSel.addEventListener("change", updateTopics);
+  updateTopics();
+
+  const dropzone = overlay.querySelector("#nf_dropzone");
+  const fileInput = overlay.querySelector("#nf_file");
+  dropzone.addEventListener("click", () => fileInput.click());
+  fileInput.addEventListener("change", () => {
+    const fn = overlay.querySelector("#nf_fileName");
+    if (fileInput.files[0]) {
+      fn.textContent = "✅ " + fileInput.files[0].name + " (" + formatSize(fileInput.files[0].size) + ")";
+      fn.style.display = "block";
+    }
+  });
+
+  overlay.querySelector("#nf_save").addEventListener("click", async () => {
+    const title = overlay.querySelector("#nf_title").value.trim();
+    const desc = overlay.querySelector("#nf_desc").value.trim();
+    const type = overlay.querySelector("#nf_type").value;
+    const topic = overlay.querySelector("#nf_topic").value;
+    const file = fileInput.files[0];
+    const errorEl = overlay.querySelector("#nf_error");
+
+    if (!title) { errorEl.textContent = "Başlık gerekli"; return; }
+    if (!file) { errorEl.textContent = "Dosya seçin"; return; }
+
+    const formData = new FormData();
+    formData.append("title", title);
+    formData.append("description", desc);
+    formData.append("topic_type", type);
+    formData.append("topic_index", topic);
+    formData.append("file", file);
+
+    try {
+      const res = await fetch("/api/notes/upload", { method: "POST", body: formData });
+      const data = await res.json();
+      if (data.error) { errorEl.textContent = data.error; return; }
+      overlay.remove();
+      renderAdminNotes();
+    } catch (err) {
+      errorEl.textContent = "Yükleme hatası: " + err.message;
+    }
+  });
+}
+
 function pctClass(pct) { if(pct>=80) return "admin-pct-green"; if(pct>=50) return "admin-pct-yellow"; return "admin-pct-red"; }
 function pctColor(pct) { if(pct>=80) return "#2e7d32"; if(pct>=50) return "#f5a623"; return "#d32f2f"; }
 function pctGradient(pct) {
@@ -486,6 +636,30 @@ function initTopicSystem() {
   });
 }
 
+async function loadNotesForTopic(type, topicIdx) {
+  try {
+    const res = await fetch("/api/notes?type=" + type + "&topic=" + topicIdx);
+    const data = await res.json();
+    const el = document.getElementById(type + "Notes");
+    if (!el) return;
+    if (!data.notes || !data.notes.length) {
+      el.innerHTML = "";
+      return;
+    }
+    el.innerHTML = '<div style="font-size:0.75rem;font-weight:600;color:#0056cc;margin-bottom:6px;border-top:1px solid #e8e8ed;padding-top:8px;margin-top:4px">📄 Bu Konuya Ait Notlar</div>' +
+      data.notes.map(n => {
+        const fileUrl = "/uploads/notes/" + encodeURIComponent(n.filename);
+        return '<a href="' + fileUrl + '" target="_blank" style="display:flex;align-items:center;gap:6px;padding:6px 8px;background:#f5f8ff;border-radius:8px;margin-bottom:4px;text-decoration:none;color:#1d1d1f;font-size:0.78rem">' +
+          '<span>📄</span>' +
+          '<span style="flex:1">' + esc(n.title) + '</span>' +
+          (n.description ? '<span style="font-size:0.7rem;color:#8e8e93">' + esc(n.description) + '</span>' : '') +
+          '</a>';
+      }).join("");
+  } catch (err) {
+    console.error("Notes load error:", err);
+  }
+}
+
 function renderTopics() {
   const tytDone = progressData.tyt || [];
   const aytDone = progressData.ayt || [];
@@ -513,7 +687,13 @@ function renderTopics() {
       <span class="topic-check">${aytDone.includes(i)?"✅":""}</span>
     </div>`
   ).join("");
-  document.querySelectorAll("#tytTopics input, #aytTopics input").forEach(cb => cb.addEventListener("change", onTopicChange));
+  document.querySelectorAll("#tytTopics input, #aytTopics input").forEach(cb => {
+    cb.addEventListener("change", onTopicChange);
+    const idx = parseInt(cb.dataset.idx);
+    const type = cb.dataset.type;
+    loadNotesForTopic(type, idx);
+    cb.addEventListener("change", () => setTimeout(() => loadNotesForTopic(type, idx), 100));
+  });
 }
 
 function onTopicChange() {

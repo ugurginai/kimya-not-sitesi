@@ -44,6 +44,18 @@ async function createTables() {
         plan TEXT DEFAULT '[]',
         UNIQUE(username, date)
       );
+      CREATE TABLE IF NOT EXISTS notes (
+        id SERIAL PRIMARY KEY,
+        title TEXT NOT NULL,
+        description TEXT DEFAULT '',
+        topic_type TEXT NOT NULL,
+        topic_index INTEGER NOT NULL,
+        filename TEXT NOT NULL,
+        original_name TEXT NOT NULL,
+        file_size INTEGER DEFAULT 0,
+        created_by TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
     `);
     console.log('PostgreSQL tablolari olusturuldu.');
   } finally {
@@ -161,4 +173,32 @@ function safeParse(str, def) {
   try { return JSON.parse(str); } catch { return def; }
 }
 
-module.exports = { init, loadUsers, saveUsers, loadStars, saveStars, loadProgress, saveProgress, loadCalendar, saveCalendar };
+async function loadNotes(topicType, topicIndex) {
+  let queryText = 'SELECT * FROM notes';
+  const params = [];
+  const conditions = [];
+  if (topicType) { conditions.push('topic_type = $' + (params.length + 1)); params.push(topicType); }
+  if (topicIndex !== undefined && topicIndex !== null && topicIndex !== '') {
+    conditions.push('topic_index = $' + (params.length + 1));
+    params.push(parseInt(topicIndex));
+  }
+  if (conditions.length) queryText += ' WHERE ' + conditions.join(' AND ');
+  queryText += ' ORDER BY created_at DESC';
+  const result = await query(queryText, params);
+  return result.rows;
+}
+
+async function createNote(data) {
+  const result = await query(
+    'INSERT INTO notes (title, description, topic_type, topic_index, filename, original_name, file_size, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+    [data.title, data.description || '', data.topic_type, data.topic_index, data.filename, data.original_name, data.file_size || 0, data.created_by]
+  );
+  return result.rows[0];
+}
+
+async function deleteNote(id) {
+  const result = await query('DELETE FROM notes WHERE id = $1 RETURNING *', [id]);
+  return result.rows[0];
+}
+
+module.exports = { init, loadUsers, saveUsers, loadStars, saveStars, loadProgress, saveProgress, loadCalendar, saveCalendar, loadNotes, createNote, deleteNote };

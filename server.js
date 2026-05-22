@@ -2,7 +2,17 @@
 const path = require("path");
 const fs = require("fs");
 const session = require("express-session");
+const multer = require("multer");
 const db = require("./db");
+
+const UPLOADS_DIR = path.join(__dirname, "uploads", "notes");
+if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, UPLOADS_DIR),
+  filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
+});
+const upload = multer({ storage, limits: { fileSize: 50 * 1024 * 1024 } });
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -334,6 +344,61 @@ app.post("/api/stars/online", requireAuth, async (req, res) => {
   if (!online) d[req.session.userId].lastActive = 0;
   await db.saveStars(d);
   res.json({ success: true });
+});
+
+app.use("/uploads/notes", express.static(UPLOADS_DIR));
+
+app.get("/api/notes", async (req, res) => {
+  try {
+    const notes = await db.loadNotes(req.query.type, req.query.topic);
+    res.json({ notes });
+  } catch (err) {
+    console.error("Notes list error:", err);
+    res.status(500).json({ error: "Notlar yüklenemedi" });
+  }
+});
+
+app.post("/api/notes/upload", requireAuth, requireAdmin, upload.single("file"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: "Dosya gerekli" });
+    const { title, description, topic_type, topic_index } = req.body;
+    if (!title || !topic_type || topic_index === undefined || topic_index === null) {
+      fs.unlinkSync(req.file.path);
+      return res.status(400).json({ error: "Başlık, konu türü ve konu indeksi gerekli" });
+    }
+    if (!["tyt", "ayt"].includes(topic_type)) {
+      fs.unlinkSync(req.file.path);
+      return res.status(400).json({ error: "Geçersiz konu türü (tyt/ayt)" });
+    }
+    const note = await db.createNote({
+      title,
+      description: description || "",
+      topic_type,
+      topic_index: parseInt(topic_index),
+      filename: req.file.filename,
+      original_name: req.file.originalname,
+      file_size: req.file.size,
+      created_by: req.session.userId,
+    });
+    res.json({ success: true, note });
+  } catch (err) {
+    console.error("Upload error:", err);
+    if (req.file) try { fs.unlinkSync(req.file.path); } catch {}
+    res.status(500).json({ error: "Not yüklenemedi" });
+  }
+});
+
+app.delete("/api/notes/:id", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const note = await db.deleteNote(req.params.id);
+    if (!note) return res.status(404).json({ error: "Not bulunamadı" });
+    const filePath = path.join(UPLOADS_DIR, note.filename);
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Delete note error:", err);
+    res.status(500).json({ error: "Not silinemedi" });
+  }
 });
 
 app.get("/", (req, res) => {
