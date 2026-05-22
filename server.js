@@ -23,6 +23,13 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "191435U.g";
 const TYT_TOPICS = ["Kimya Bilimi","Atom ve Periyodik Tablo","Kimyasal Türlerarası Etkileşimler","Maddenin Halleri","Doğa ve Kimya","Kimyanın Temel Kanunları","Kimyasal Hesaplamalar","Karışımlar","Asit Baz Tuz","Kimya Her Yerde"];
 const AYT_TOPICS = ["Modern Atom Teorisi","Gazlar","Sıvı Çözeltiler","Kimyasal Tepkimelerde Entalpi","Kimyasal Tepkimelerde Hız","Kimyasal Tepkimelerde Denge","Asit Baz Dengesi","Çözünürlük Dengesi","Elektrokimya","Karbon Kimyasına Giriş","Organik Kimya"];
 
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  next();
+});
+
+app.get("/health", (req, res) => res.json({ ok: true, time: Date.now() }));
+
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
@@ -40,9 +47,11 @@ function requireAuth(req, res, next) {
   if (req.path.startsWith("/api/") || req.path.startsWith("/files/")) return res.status(401).json({ error: "Giriş yapmalısınız" });
   res.redirect("/login.html");
 }
-function requireAdmin(req, res, next) {
-  const users = db._usersCache;
-  if (users && users[req.session.userId]?.role === "admin") return next();
+async function requireAdmin(req, res, next) {
+  try {
+    const users = await db.loadUsers();
+    if (users && users[req.session.userId]?.role === "admin") return next();
+  } catch {}
   res.status(403).json({ error: "Yetkiniz yok" });
 }
 
@@ -50,7 +59,6 @@ async function loadAll() {
   const [users, stars, progress, calendar] = await Promise.all([
     db.loadUsers(), db.loadStars(), db.loadProgress(), db.loadCalendar()
   ]);
-  db._usersCache = users;
   return { users, stars, progress, calendar };
 }
 
