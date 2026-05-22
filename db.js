@@ -57,6 +57,7 @@ async function createTables() {
         created_by TEXT NOT NULL,
         created_at TIMESTAMP DEFAULT NOW()
       );
+      ALTER TABLE notes ADD COLUMN IF NOT EXISTS note_type TEXT DEFAULT 'not';
     `);
     console.log('PostgreSQL tablolari olusturuldu.');
   } finally {
